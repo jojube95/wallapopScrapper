@@ -5,10 +5,20 @@ import pandas as pd
 
 def do_stuff(args):
     print(args)
-    json_response = get_wallapop_data(args.kw, args.pmin, args.pmax)
-    result_dataframe = normalize_json(json_response)
+
+    result_dataframe = iterate_prices(args.kw, args.pmin, args.pmax, 5)
 
     print(result_dataframe)
+
+
+def iterate_prices(keyword, min_price, max_price, interval):
+    dataframes = []
+    previus_num = min_price
+    for num in range(min_price, max_price + (interval + 1), interval):
+        dataframes.append(normalize_json(get_wallapop_data(keyword, previus_num, num)))
+        previus_num = num
+
+    return pd.concat(dataframes)
 
 
 def get_wallapop_data(keyword, min_price, max_price):
