@@ -1,20 +1,14 @@
 import argparse
 import requests
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='Get wallapop results into pandas graphs')
-    parser.add_argument('-kw', help='keyword to search on wallapop')
-    parser.add_argument('-pmin', type=int, help='minimum price to search on wallapop')
-    parser.add_argument('-pmax', type=int, help='maximum price to search on wallapop')
-
-    return parser.parse_args()
+import pandas as pd
 
 
 def do_stuff(args):
     print(args)
     json_response = get_wallapop_data(args.kw, args.pmin, args.pmax)
-    print(json_response)
+    result_dataframe = normalize_json(json_response)
+
+    print(result_dataframe)
 
 
 def get_wallapop_data(keyword, min_price, max_price):
@@ -29,6 +23,20 @@ def get_wallapop_data(keyword, min_price, max_price):
     }
     response = requests.get(url, params=params)
     return response.json()
+
+
+def normalize_json(json_list):
+    df = pd.json_normalize(json_list, record_path=['search_objects'], max_level=0)
+    return df[['id', 'title', 'description', 'price']]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Get wallapop results into pandas graphs')
+    parser.add_argument('-kw', help='keyword to search on wallapop')
+    parser.add_argument('-pmin', type=int, help='minimum price to search on wallapop')
+    parser.add_argument('-pmax', type=int, help='maximum price to search on wallapop')
+
+    return parser.parse_args()
 
 
 def main():
