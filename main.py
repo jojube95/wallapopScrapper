@@ -6,22 +6,27 @@ import pandas as pd
 def do_stuff(args):
     print(args)
 
-    result_dataframe = iterate_prices(args.kw, args.pmin, args.pmax, 5)
+    result_dataframe = iterate_items(args.kw, args.pmin, args.pmax)
 
     print(result_dataframe)
 
 
-def iterate_prices(keyword, min_price, max_price, interval):
+def iterate_items(keyword, min_price, max_price):
     dataframes = []
-    previus_num = min_price
-    for num in range(min_price, max_price + (interval + 1), interval):
-        dataframes.append(normalize_json(get_wallapop_data(keyword, previus_num, num)))
-        previus_num = num
+    start_item = 0
+    while True:
+        print(start_item)
+        dataframe = normalize_json(get_wallapop_data(keyword, min_price, max_price, start_item))
+        start_item += 40
+        if dataframe.empty:
+            break
+        else:
+            dataframes.append(dataframe)
 
-    return pd.concat(dataframes)
+    return pd.concat(dataframes).reset_index(drop=True)
 
 
-def get_wallapop_data(keyword, min_price, max_price):
+def get_wallapop_data(keyword, min_price, max_price, start_item):
     url = 'https://api.wallapop.com/api/v3/general/search/'
     params = {
         'keywords': keyword,
@@ -29,15 +34,19 @@ def get_wallapop_data(keyword, min_price, max_price):
         'max_sale_price': max_price,
         'latitude': 40.41956,
         'longitude': -3.69196,
-        'order_by': 'price_low_to_high'
+        'order_by': 'price_low_to_high',
+        'country_code': 'ES',
+        'category_ids': 15000,
+        'distance': 600000,
+        'start': start_item
     }
     response = requests.get(url, params=params)
     return response.json()
 
 
 def normalize_json(json_list):
-    df = pd.json_normalize(json_list, record_path=['search_objects'], max_level=0)
-    return df[['id', 'title', 'description', 'price']]
+    df = pd.json_normalize(json_list, record_path=['search_objects'], max_level=1)
+    return df
 
 
 def parse_args():
