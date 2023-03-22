@@ -2,6 +2,13 @@ import argparse
 import requests
 import pandas as pd
 import re
+import json
+
+with open('data/cpu_benchmarks.json') as f:
+    cpu_benchmarks = json.load(f)
+
+with open('data/gpu_benchmarks.json') as f:
+    gpu_benchmarks = json.load(f)
 
 
 def do_stuff(args):
@@ -11,7 +18,50 @@ def do_stuff(args):
 
     result_dataframe = add_product_identifier_to_dataframe(args.component, result_dataframe)[['id', 'title', 'description', 'product', 'price']]
 
+    result_dataframe = normalize_dataframe(result_dataframe)
+
+    result_dataframe = add_benchmark_column(result_dataframe, args.component)
+
+    result_dataframe = normalize_dataframe(result_dataframe)
+
+    result_dataframe = result_dataframe.dropna(subset=['benchmark'])
+
+    result_dataframe = add_price_benchmark_ratio(result_dataframe)
+
     print(result_dataframe)
+
+
+def add_price_benchmark_ratio(dataframe):
+    ratios = []
+
+    for index, row in dataframe.iterrows():
+        ratios.append(row['benchmark'] / row['price'])
+
+    dataframe['ratio'] = ratios
+
+    return dataframe
+
+
+def add_benchmark_column(dataframe, component):
+    benchmarks = []
+
+    for index, row in dataframe.iterrows():
+        benchmarks.append(get_benchmark_mark(row['product'], component))
+
+    dataframe['benchmark'] = benchmarks
+
+    return dataframe
+
+
+def get_benchmark_mark(product, component):
+    if component == 'cpu':
+        return cpu_benchmarks.get(product)
+    else:
+        return gpu_benchmarks.get(product)
+
+
+def normalize_dataframe(dataframe):
+    return dataframe.dropna(subset=['product'])
 
 
 def add_product_identifier_to_dataframe(component, dataframe):
@@ -27,15 +77,23 @@ def generate_products(component, dataframe):
 
     for index, row in dataframe.iterrows():
         product = get_product_name(component, row['title'], row['description'])
-        product = normalize_product(product)
         products.append(product)
 
     return products
 
 
-def normalize_product(product):
-    # TODO
-    return ''
+def normalize_cpu_product_name(product):
+    if product:
+        return re.sub(r"(i\d*)( | -| -| - |-)(\d*)", r"\1-\3", product, count=1).upper()
+    else:
+        ''
+
+
+def normalize_gpu_product_name(product):
+    if product:
+        return product.upper()
+    else:
+        ''
 
 
 def get_product_name(component, title, description):
@@ -43,14 +101,14 @@ def get_product_name(component, title, description):
     description = description.lower()
 
     if component == 'cpu':
-        return get_product_name_cpu(title, description)
+        return normalize_cpu_product_name(get_product_name_cpu(title, description))
     else:
-        return get_product_name_gpu(title, description)
+        return normalize_gpu_product_name(get_product_name_gpu(title, description))
 
 
 def get_product_name_cpu(title, description):
-    pattern_model_intel = r"i(3|5|7|9)( |-| - | -|- )[0-9]{3,4}(k|t|)"
-    pattern_model_amd = r"(ryzen|fx)( |-| - | -|- )(\w|)(3|5|7|9|)\s*[0-9]{3,4}"
+    pattern_model_intel = r"i(3|5|7|9)( |-| - | -|- )(\d*)(k|t|)"
+    pattern_model_amd = r"(ryzen|fx)( |-| - | -|- )(\w|)(3|5|7|9|)\s*(\d*)"
 
     match = re.search(pattern_model_intel, title)
 
