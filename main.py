@@ -84,7 +84,7 @@ def generate_products(component, dataframe):
 
 def normalize_cpu_product_name(product):
     if product:
-        return re.sub(r"(i\d*)( | -| -| - |-)(\d*)", r"\1-\3", product, count=1).upper()
+        return product.upper()
     else:
         ''
 
@@ -107,44 +107,58 @@ def get_product_name(component, title, description):
 
 
 def get_product_name_cpu(title, description):
-    pattern_model_intel = r"i(3|5|7|9)( |-| - | -|- )(\d*)(k|t|)"
-    pattern_model_amd = r"(ryzen|fx)( |-| - | -|- )(\w|)(3|5|7|9|)\s*(\d*)"
+    pattern_model_intel = r"(i3|i5|i7|i9)( |-| - | -|- )([0-9]{3,4})(k|t|r|p|h|hr|s|)"
+    pattern_model_amd = r"(ryzen|fx)( |-| - | -|- )(3|5|7|9|)\s*([0-9]{3,4})"
 
-    match = re.search(pattern_model_intel, title)
+    result = re.search(pattern_model_intel, title)
 
-    if match is None:
-        match = re.search(pattern_model_intel, description)
-        if match is None:
-            match = re.search(pattern_model_amd, title)
-            if match is None:
-                match = re.search(pattern_model_amd, description)
-                if match is None:
-                    return ''
+    if result is None:
+        result = re.search(pattern_model_intel, description)
+        if result is None:
+            result = re.search(pattern_model_amd, title)
+            if result is None:
+                result = re.search(pattern_model_amd, description)
+                if result is None:
+                    product = ''
+                else:
+                    product = f"{result.group(1)} {result.group(3)} {result.group(4)}"
             else:
-                return match.group().strip()
+                product = f"{result.group(1)} {result.group(3)} {result.group(4)}"
         else:
-            return match.group().strip()
+            product = f"{result.group(1)}-{result.group(3)}{result.group(4)}"
     else:
-        return match.group().strip()
+        product = f"{result.group(1)}-{result.group(3)}{result.group(4)}"
+
+    return product
 
 
 def get_product_name_gpu(title, description):
-    model = 'GTX'
+    pattern1 = r"(GTX|Gtx|gtx)(\s*|)([0-9]{3,4})(\s*|)(ti|super|)"
 
-    pattern = "\\s*[0-9]{3,4}\\s*(ti|super|)"
+    result = re.search(pattern1, title)
 
-    match = re.search(pattern, title)
-
-    if match is None:
-        match = re.search(pattern, description)
-        if match is None:
-            return ''
+    if result is None:
+        result = re.search(pattern1, description)
+        if result is None:
+            product = ''
         else:
-            serie = match.group().strip()
+            product = f"{result.group(1)} {result.group(3)} {result.group(5)}"
     else:
-        serie = match.group().strip()
+        product = f"{result.group(1)} {result.group(3)} {result.group(5)}"
 
-    return model + ' ' + serie
+    if product == '':
+        pattern2 = r"([0-9]{3,4})(\s*|)(ti|super|)(\s*|)(GTX|Gtx|gtx)"
+        result = re.search(pattern2, title)
+        if result is None:
+            result = re.search(pattern2, description)
+            if result is None:
+                product = ''
+            else:
+                product = f"{result.group(5)} {result.group(1)} {result.group(3)}"
+        else:
+            product = f"{result.group(5)} {result.group(1)} {result.group(3)}"
+
+    return product
 
 
 def iterate_items(component, min_price, max_price):
