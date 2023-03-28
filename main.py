@@ -16,19 +16,29 @@ def do_stuff(args):
 
     result_dataframe = iterate_items(args.component, args.pmin, args.pmax)
 
-    result_dataframe = add_product_identifier_to_dataframe(args.component, result_dataframe)[['id', 'title', 'description', 'product', 'price']]
+    result_dataframe = add_product_identifier_to_dataframe(args.component, result_dataframe)[['title', 'description', 'web_slug', 'flags.reserved', 'product', 'price']]
+
+    result_dataframe = remove_reserverd_products(result_dataframe)[['title', 'description', 'web_slug', 'product', 'price']]
 
     result_dataframe = normalize_dataframe(result_dataframe)
 
     result_dataframe = add_benchmark_column(result_dataframe, args.component)
 
-    result_dataframe = normalize_dataframe(result_dataframe)
-
     result_dataframe = result_dataframe.dropna(subset=['benchmark'])
 
     result_dataframe = add_price_benchmark_ratio(result_dataframe)
 
+    generate_wallapop_url(result_dataframe)
+
     print(result_dataframe)
+
+
+def generate_wallapop_url(dataframe):
+    dataframe['web_slug'] = dataframe['web_slug'].astype(str).apply(lambda x: 'https://es.wallapop.com/item/' + x)
+
+
+def remove_reserverd_products(dataframe):
+    return dataframe[dataframe['flags.reserved'] != True]
 
 
 def add_price_benchmark_ratio(dataframe):
